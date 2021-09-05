@@ -58,45 +58,22 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  // update a tag's name by its `id` value
-  Tag.update(req.body, 
-    {
-      where: {
-        id: req.params.id,
-      },
+  Tag.update(req.body, {
+    where: {
+      id: req.params.id
     }
-  )
-    .then((tag) => {
-      return ProductTag.findAll({ where: { tag_id: req.params.id } });
+  })
+    .then(dbTagData => {
+      if (!dbTagData[0]) {
+        res.status(400).json({ message: 'No tag was found with this id' });
+        return;
+      }
+      res.json(dbTagData);
     })
-    .then((productTags) => {
-      // get list of current product_ids
-      const productIds = productTags.map(({ product_id }) => product_id);
-      // create filtered list of new product_ids
-      const newProducts = req.body.productIds
-        .filter((product_id) => !productIds.includes(product_id))
-        .map((product_id) => {
-          return {
-            tag_id: req.params.id,
-            product_id,
-          };
-        });
-      // figure out which ones to remove
-      const productsToRemove = productTags
-        .filter(({ product_id }) => !req.body.productIds.includes(product_id))
-        .map(({ id }) => id);
-
-      // run both actions
-      return Promise.all([
-        ProductTag.destroy({ where: { id: productsToRemove } }),
-        ProductTag.bulkCreate(newProducts),
-      ]);
+    .catch(err => {
+      console.log(err);
+      res.status(500).json(err)
     })
-    .then((updatedProducts) => res.json(updatedProducts))
-    .catch((err) => {
-      // console.log(err);
-      res.status(400).json(err);
-    });
 });
 
 router.delete('/:id', async (req, res) => {
